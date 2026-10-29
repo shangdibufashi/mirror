@@ -24,18 +24,59 @@ var (
 	outputPath = pflag.StringP("outputPath", "", "output.sh", "结果输出路径")
 	repository = pflag.StringP("repository", "", "", "仓库地址,如果为空,默认推到dockerHub")
 )
-func FormatName(repository string, str string) string{
+func FormatName(repository string, str string) string {
 	arr := strings.Split(str, "/")
 	hasDot := strings.Index(arr[0], ".") != -1
 	tagName := "docker.io"
 	version := strings.Join(arr, ".")
-	if (hasDot) {
+	if hasDot {
 		tagName = arr[0]
 		version = strings.Join(arr[1:], ".")
 	}
 	version = strings.ReplaceAll(version, ":", "_")
 	results := repository + "/" + tagName + ":" + version
 	return results
+}
+
+// SanitizeRef 把镜像引用修正为 docker 引擎能接受的格式：
+//  - 仓库路径各段转为小写（docker 要求 name 组件必须小写，用户名/仓库名含大写时会报
+//    invalid reference format）
+//  - tag 中的非法字符（. 除外的一律允许字母数字、_、-）不在白名单时替换为 -
+//    这里 FormatName 生成的 tag 形如 library.registry_2，其中 . 是合法的
+func SanitizeRef(ref string) string {
+	i := -1
+	// 找 tag 分隔：最后一个冒号且其后不含 /
+	for j := len(ref) - 1; j >= 0; j-- {
+		if ref[j] == ':' {
+			if !strings.Contains(ref[j+1:], "/") {
+				i = j
+			}
+			break
+		}
+		if ref[j] == '/' {
+			break
+		}
+	}
+	repo, tag := ref, ""
+	if i != -1 {
+		repo, tag = ref[:i], ref[i+1:]
+	}
+	// 仓库部分整体小写
+	repo = strings.ToLower(repo)
+	// tag 白名单：字母数字、_、-、.
+	tag = strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9',
+			r == '_', r == '-', r == '.':
+			return r
+		default:
+			return '-'
+		}
+	}, tag)
+	if tag != "" {
+		return repo + ":" + tag
+	}
+	return repo
 }
 func main() {
 	pflag.Parse()
@@ -96,10 +137,10 @@ func main() {
 		// 如果指定了值,则推动到指定的仓库下,用户名不一定与repository后缀相同
 		if *repository == "" {
 // 			target = *username + "/" + strings.ReplaceAll(source, "/", "__")
-			target = FormatName(*username,source)
+			target = SanitizeRef(FormatName(*username, source))
 		} else {
 // 			target = *repository + "/" + strings.ReplaceAll(source, "/", "__")
-			target = FormatName(*repository,source)
+			target = SanitizeRef(FormatName(*repository, source))
 		}
 
 		wg.Add(1)
