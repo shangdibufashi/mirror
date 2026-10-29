@@ -23,6 +23,10 @@ func TestSanitizeRef(t *testing.T) {
 		{"/leo/docker.io:library.registry_2", "leo/docker.io:library.registry_2"},
 		{"leo/docker.io:library.registry_2/", "leo/docker.io:library.registry_2"},
 		{"ccr.ccs.tencentyun.com//ns/repo:v1", "ccr.ccs.tencentyun.com/ns/repo:v1"},
+		// secret 里误带了协议头
+		{"https://registry.cn-hangzhou.aliyuncs.com/zhuoxiangqy/docker.io:library.registry_2",
+			"registry.cn-hangzhou.aliyuncs.com/zhuoxiangqy/docker.io:library.registry_2"},
+		{"http://registry.cn-hangzhou.aliyuncs.com/ns/repo:v1", "registry.cn-hangzhou.aliyuncs.com/ns/repo:v1"},
 	}
 	for _, c := range cases {
 		if got := SanitizeRef(c.in); got != c.want {
