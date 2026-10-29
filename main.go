@@ -39,11 +39,18 @@ func FormatName(repository string, str string) string {
 }
 
 // SanitizeRef 把镜像引用修正为 docker 引擎能接受的格式：
+//  - 折叠重复的 /（repository secret 末尾多带一个 / 时会产生 //，引擎会拒绝）
+//  - 去掉首尾多余的 /
 //  - 仓库路径各段转为小写（docker 要求 name 组件必须小写，用户名/仓库名含大写时会报
 //    invalid reference format）
 //  - tag 中的非法字符（. 除外的一律允许字母数字、_、-）不在白名单时替换为 -
 //    这里 FormatName 生成的 tag 形如 library.registry_2，其中 . 是合法的
 func SanitizeRef(ref string) string {
+	// 先折叠 // 为 /，再去首尾 /，避免 "user//docker.io" 这类格式
+	for strings.Contains(ref, "//") {
+		ref = strings.ReplaceAll(ref, "//", "/")
+	}
+	ref = strings.Trim(ref, "/")
 	i := -1
 	// 找 tag 分隔：最后一个冒号且其后不含 /
 	for j := len(ref) - 1; j >= 0; j-- {

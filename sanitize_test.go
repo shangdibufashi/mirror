@@ -18,6 +18,11 @@ func TestSanitizeRef(t *testing.T) {
 		{"user/repo:v1.0 beta", "user/repo:v1.0-beta"},
 		// 无 tag 的引用
 		{"Leo/repo", "leo/repo"},
+		// repository secret 末尾带 / 造成的 // 和首尾斜杠
+		{"leo//docker.io:library.registry_2", "leo/docker.io:library.registry_2"},
+		{"/leo/docker.io:library.registry_2", "leo/docker.io:library.registry_2"},
+		{"leo/docker.io:library.registry_2/", "leo/docker.io:library.registry_2"},
+		{"ccr.ccs.tencentyun.com//ns/repo:v1", "ccr.ccs.tencentyun.com/ns/repo:v1"},
 	}
 	for _, c := range cases {
 		if got := SanitizeRef(c.in); got != c.want {
